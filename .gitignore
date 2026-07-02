@@ -1,0 +1,22 @@
+# python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# env & secrets
+.env
+*.session
+*.session-journal
+autobot.db
+backend/autobot.db
+
+# node
+node_modules/
+frontend/dist/
+
+# misc
+.DS_Store
+data/
