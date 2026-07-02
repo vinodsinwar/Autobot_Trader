@@ -35,13 +35,13 @@ class Base(DeclarativeBase):
 # enums (stored as plain strings)
 # ---------------------------------------------------------------------------
 
-class SignalSource(str, enum.Enum):
+class SignalSource(enum.StrEnum):
     TELEGRAM = "telegram"
     YOUTUBE = "youtube"
     MANUAL = "manual"
 
 
-class SignalState(str, enum.Enum):
+class SignalState(enum.StrEnum):
     RECEIVED = "received"
     PARSED = "parsed"
     PARSE_FAILED = "parse_failed"
@@ -56,19 +56,19 @@ class SignalState(str, enum.Enum):
     ERROR = "error"
 
 
-class Broker(str, enum.Enum):
+class Broker(enum.StrEnum):
     DHAN = "dhan"
     DELTA = "delta"
     PAPER = "paper"
 
 
-class OrderLeg(str, enum.Enum):
+class OrderLeg(enum.StrEnum):
     ENTRY = "entry"
     TARGET = "target"
     STOP_LOSS = "stop_loss"
 
 
-class OrderStatus(str, enum.Enum):
+class OrderStatus(enum.StrEnum):
     PENDING = "pending"
     PLACED = "placed"
     PART_FILLED = "part_filled"
@@ -78,12 +78,12 @@ class OrderStatus(str, enum.Enum):
     ERROR = "error"
 
 
-class PositionStatus(str, enum.Enum):
+class PositionStatus(enum.StrEnum):
     OPEN = "open"
     CLOSED = "closed"
 
 
-class ExecutionMode(str, enum.Enum):
+class ExecutionMode(enum.StrEnum):
     AUTO = "auto"
     MANUAL = "manual"
 
