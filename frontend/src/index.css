@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-surface text-ink antialiased;
+}
+
+.card {
+  @apply bg-panel border border-edge rounded-lg p-4;
+}
+
+.btn {
+  @apply px-3 py-1.5 rounded-md text-sm font-medium border border-edge
+    bg-panel hover:border-ink-mute transition-colors disabled:opacity-50;
+}
+.btn-primary {
+  @apply btn bg-accent border-accent text-white hover:opacity-90 hover:border-accent;
+}
+.btn-danger {
+  @apply btn bg-loss border-loss text-white hover:opacity-90 hover:border-loss;
+}
+
+.input {
+  @apply bg-surface border border-edge rounded-md px-3 py-1.5 text-sm w-full
+    focus:outline-none focus:border-accent;
+}
+.label {
+  @apply block text-xs text-ink-dim mb-1 mt-3 uppercase tracking-wide;
+}
+
+table.data {
+  @apply w-full text-sm;
+}
+table.data th {
+  @apply text-left text-xs uppercase tracking-wide text-ink-mute font-medium py-2 border-b border-edge;
+}
+table.data td {
+  @apply py-2 border-b border-edge/60;
+}

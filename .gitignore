@@ -16,6 +16,7 @@ backend/autobot.db
 # node
 node_modules/
 frontend/dist/
+backend/static/
 
 # misc
 .DS_Store

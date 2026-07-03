@@ -1,0 +1,1 @@
+{"root":["./src/App.tsx","./src/api.ts","./src/components.tsx","./src/hooks.ts","./src/main.tsx","./src/pages/Channels.tsx","./src/pages/Events.tsx","./src/pages/Overview.tsx","./src/pages/Positions.tsx","./src/pages/Reports.tsx","./src/pages/Settings.tsx","./src/pages/Signals.tsx","./src/pages/Youtube.tsx"],"version":"5.9.3"}
