@@ -11,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from app import services
 from app.api import routes as api_routes
 from app.api import ws as api_ws
+from app.api import youtube_routes
 from app.core import security
 from app.core.config import get_settings
 from app.core.logging import configure_logging, get_logger
@@ -116,6 +117,7 @@ app.add_middleware(
 )
 app.include_router(api_routes.router)
 app.include_router(api_routes.protected)
+app.include_router(youtube_routes.router)
 app.include_router(api_ws.router)
 
 @app.get("/healthz")
