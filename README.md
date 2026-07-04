@@ -53,7 +53,24 @@ SOURCE 2: YouTube live ─► LiveWatcher ─► ffmpeg ─► STT ─► LLM Ex
   with an append-only audit log; dashboard shows live P&L, daily/cumulative charts,
   per-source win rates, and CSV export.
 
-## Quickstart (local, zero external deps)
+## One-click run
+
+| OS | Do this |
+|---|---|
+| **Windows** | double-click **`run.bat`** |
+| **Linux / macOS** | run **`./run.sh`** (or double-click it in your file manager) |
+
+That's it. The first run sets everything up automatically — creates `.env` with a freshly
+generated encryption key, installs the Python dependencies, builds the dashboard — then
+starts the server and opens **http://localhost:8000** in your browser. Later runs skip the
+setup and start in seconds. Log in with the password shown in the terminal
+(default `change-me` — change it in Settings), then follow the setup walkthrough below.
+
+Prerequisites: [Python 3.11+](https://python.org) and [Node.js 18+](https://nodejs.org)
+on your PATH (the script tells you if either is missing); `ffmpeg` only if you use the
+YouTube pipeline.
+
+## Manual quickstart (what the launcher automates)
 
 ```bash
 # 1. backend
