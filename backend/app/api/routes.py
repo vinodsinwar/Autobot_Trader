@@ -38,13 +38,28 @@ class LoginRequest(BaseModel):
     password: str
 
 
+# simple in-memory brute-force guard: 5 failures -> 60s lockout (single-user app)
+_LOGIN_FAILS: list[float] = []
+_LOGIN_MAX_FAILS = 5
+_LOGIN_LOCK_SECONDS = 60.0
+
+
 @router.post("/auth/login")
 async def login(body: LoginRequest, session: AsyncSession = Depends(get_session)):
+    import time as _time
+
+    now = _time.monotonic()
+    _LOGIN_FAILS[:] = [ts for ts in _LOGIN_FAILS if now - ts < _LOGIN_LOCK_SECONDS]
+    if len(_LOGIN_FAILS) >= _LOGIN_MAX_FAILS:
+        raise HTTPException(429, "too many failed attempts — wait a minute")
+
     stored = await get_setting(session, "auth", {}) or {}
     if not stored.get("password_hash") or not security.verify_password(
         body.password, stored["password_hash"]
     ):
+        _LOGIN_FAILS.append(now)
         raise HTTPException(401, "wrong password")
+    _LOGIN_FAILS.clear()
     return {"token": security.create_token()}
 
 
@@ -309,18 +324,30 @@ async def put_setting(
 ):
     if key == "auth":
         raise HTTPException(400, "use /auth/change-password")
-    # keep masked secrets unchanged: merge "•••" fields from the stored value
+    # merge onto the stored value: masked "•••" fields keep their real secret,
+    # and stored-only fields (e.g. token_updated_at) survive partial saves
     stored = await get_setting(session, key, {}) or {}
     merged = {
-        k: (stored.get(k) if v == "•••" else v)
-        for k, v in body.items()
+        **stored,
+        **{k: (stored.get(k) if v == "•••" else v) for k, v in body.items()},
     }
+    if key == "dhan" and body.get("access_token") not in ("", "\u2022\u2022\u2022", None):
+        # a genuinely new token was pasted — restart the 24h countdown
+        merged["token_updated_at"] = datetime.now(UTC).isoformat()
     await set_setting(session, key, merged, secret=key in SECRET_SETTINGS)
     if key in ("dhan", "delta"):
         await registry.invalidate(key)
-        if key == "dhan":
-            merged["token_updated_at"] = datetime.now(UTC).isoformat()
-            await set_setting(session, key, merged, secret=True)
+        # start fill-tracking for a broker configured after boot, no restart needed
+        from app import services
+
+        if services.tracker_service is not None and (
+            merged.get("access_token") or merged.get("api_key")
+        ):
+            try:
+                adapter = await registry.get_adapter(session, key)
+                services.tracker_service.watch(key, adapter)
+            except Exception:
+                pass  # tracked at next restart; credentials may still be partial
     await audit.record(session, "system", "setting_changed", {"key": key})
     return {"ok": True}
 

@@ -44,6 +44,9 @@ if not exist backend\static\index.html (
     popd
 )
 
+REM load .env into the environment so the server sees it from backend\
+for /f "usebackq eol=# tokens=1,* delims==" %%a in (".env") do set "%%a=%%b"
+
 echo [autobot] starting Autobot Trader on http://localhost:%PORT%
 echo [autobot] login password is AUTOBOT_ADMIN_PASSWORD from .env (default: change-me)
 start "" "http://localhost:%PORT%"

@@ -11,7 +11,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_prefix="AUTOBOT_", extra="ignore")
+    # .env is looked up in both the process cwd and the repo root, so the app
+    # finds it whether launched from the repo root, backend/, or Docker.
+    model_config = SettingsConfigDict(
+        env_file=(".env", "../.env"), env_prefix="AUTOBOT_", extra="ignore"
+    )
 
     # --- storage ---
     database_url: str = "sqlite+aiosqlite:///./autobot.db"

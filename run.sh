@@ -59,6 +59,8 @@ if [ ! -f backend/static/index.html ]; then
 fi
 
 # --- launch ------------------------------------------------------------------
+# export .env so the server sees it regardless of working directory
+set -a; . ./.env; set +a
 PASSWORD="$(grep '^AUTOBOT_ADMIN_PASSWORD=' .env | cut -d= -f2- || true)"
 say "starting Autobot Trader on http://localhost:${PORT}"
 say "login password: ${PASSWORD:-change-me}  (change it in Settings after first login)"

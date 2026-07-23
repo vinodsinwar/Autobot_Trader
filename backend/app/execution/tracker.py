@@ -159,17 +159,25 @@ async def _close_position(
     )
 
 
+POSITION_CHECK_SECONDS = 300
+
+
 class TrackerService:
-    """Runs one consumer task per active broker adapter."""
+    """Runs one consumer task per active broker adapter, plus a periodic
+    position cross-check against the broker book (safety net for missed
+    websocket updates, e.g. Delta bracket child orders)."""
 
     def __init__(self) -> None:
         self._tasks: dict[str, asyncio.Task] = {}
+        self._position_task: asyncio.Task | None = None
 
     def watch(self, name: str, adapter: BrokerAdapter) -> None:
         if name in self._tasks and not self._tasks[name].done():
             return
         self._tasks[name] = asyncio.create_task(self._consume(name, adapter))
         log.info("tracker_watching", broker=name)
+        if self._position_task is None or self._position_task.done():
+            self._position_task = asyncio.create_task(self._position_check_loop())
 
     async def _consume(self, name: str, adapter: BrokerAdapter) -> None:
         async for update in adapter.stream_order_updates():
@@ -180,7 +188,20 @@ class TrackerService:
             except Exception:
                 log.exception("tracker_apply_error", broker=name)
 
+    async def _position_check_loop(self) -> None:
+        while True:
+            await asyncio.sleep(POSITION_CHECK_SECONDS)
+            try:
+                await check_position_mismatches()
+            except Exception:
+                log.exception("position_check_error")
+
     async def stop(self) -> None:
+        if self._position_task:
+            self._position_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await self._position_task
+            self._position_task = None
         for task in self._tasks.values():
             task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
@@ -222,6 +243,15 @@ async def reconcile() -> None:
             for order in orders:
                 r = remote.get(order.broker_order_id)
                 if r is None:
+                    if broker == "delta":
+                        # Delta lists only OPEN orders — absence usually means the
+                        # order filled/cancelled while we were down. Flag for review
+                        # instead of declaring it an error.
+                        await audit.record(session, "order", "reconcile_unresolved",
+                                           {"broker_order_id": order.broker_order_id,
+                                            "hint": "check Delta order history manually"},
+                                           order.signal_id, commit=False)
+                        continue
                     order.status = OrderStatus.ERROR.value
                     order.status_reason = "not found at broker during reconciliation"
                     await audit.record(session, "order", "reconcile_missing",
@@ -245,3 +275,43 @@ async def reconcile() -> None:
                     order.status = OrderStatus.CANCELLED.value
         await session.commit()
         log.info("reconcile_done", checked=len(open_orders))
+
+
+async def check_position_mismatches() -> None:
+    """Cross-check locally-open live positions against the broker book.
+
+    If a position we believe is open no longer exists at the broker (e.g. a
+    bracket leg filled while our websocket was down), raise a loud audit event
+    so the user reconciles it — never silently rewrite money state.
+    """
+    async with session_factory()() as session:
+        local_open = (
+            await session.execute(
+                select(Position).where(
+                    Position.status == PositionStatus.OPEN.value,
+                    Position.broker != "paper",
+                )
+            )
+        ).scalars().all()
+        if not local_open:
+            return
+        by_broker: dict[str, list[Position]] = {}
+        for pos in local_open:
+            by_broker.setdefault(pos.broker, []).append(pos)
+        for broker, positions in by_broker.items():
+            try:
+                adapter = await registry.get_adapter(session, broker)
+                remote_ids = {p.security_id for p in await adapter.get_positions()}
+            except BrokerError as exc:
+                log.warning("position_check_skipped", broker=broker, error=str(exc))
+                continue
+            for pos in positions:
+                if pos.security_id not in remote_ids:
+                    await audit.record(
+                        session, "position", "mismatch_detected",
+                        {"position_id": pos.id, "symbol": pos.symbol, "broker": broker,
+                         "summary": f"{pos.symbol}: open locally but absent at {broker} — "
+                                    "verify and close it manually in the dashboard/broker"},
+                        pos.signal_id, commit=False,
+                    )
+        await session.commit()
